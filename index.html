@@ -339,7 +339,75 @@
   }
   .reset{background:none;border:1px solid var(--line);color:var(--dim);font-family:'JetBrains Mono';font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;}
   .reset:hover{border-color:var(--hot);color:var(--hot);}
+
+  /* sync status dot */
+  .syncdot{display:inline-block;color:var(--dim);font-size:9px;vertical-align:middle;margin-left:2px;}
+  .syncdot.live{color:var(--goop);text-shadow:0 0 6px var(--goop);}
+
+  /* recipe ingredient tag on grocery list */
+  .rtag{font-family:'JetBrains Mono';font-weight:700;font-size:9px;padding:1px 6px;border-radius:10px;background:rgba(125,217,87,.16);color:var(--goop);margin-left:6px;text-transform:uppercase;letter-spacing:.04em;}
+  .gitem .gx{margin-left:auto;color:var(--hot);font-weight:700;cursor:pointer;font-size:13px;opacity:.6;}
+  .gitem .gx:hover{opacity:1;}
+
+  /* food / calorie tracker */
+  .subtabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .subtab{font-family:'JetBrains Mono';font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);background:rgba(0,0,0,.2);border:1.5px solid var(--line);cursor:pointer;padding:8px 14px;border-radius:8px;transition:.15s;}
+  .subtab:hover{color:var(--nut-lite);}
+  .subtab.active{color:var(--roast);background:var(--goop);border-color:var(--goop);}
+  .subpage{display:none;}
+  .subpage.active{display:block;animation:pop .25s ease;}
+  .calbar{display:flex;align-items:baseline;gap:8px;background:rgba(125,217,87,.1);border:1px solid var(--goop);border-radius:10px;padding:10px 14px;margin-bottom:12px;}
+  .calbar b{font-family:'Archivo Black';color:var(--goop);font-size:20px;}
+  .calbar small{font-size:11px;color:var(--dim);}
 </style>
+
+<!-- ============================================================
+     FIREBASE — shared data so Lucy & Harry see each other's logs.
+     PASTE YOUR CONFIG in the firebaseConfig object below.
+     (Step-by-step setup guide is in FIREBASE-SETUP.md)
+     ============================================================ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, onValue, set, get }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // 👇👇👇  PASTE YOUR FIREBASE CONFIG BETWEEN THE BRACKETS  👇👇👇
+  const firebaseConfig = {
+    // apiKey: "...",
+    // authDomain: "...",
+    // databaseURL: "...",
+    // projectId: "...",
+    // storageBucket: "...",
+    // messagingSenderId: "...",
+    // appId: "..."
+  };
+  // 👆👆👆  (see FIREBASE-SETUP.md for exactly where to get this)  👆👆👆
+
+  // If config isn't filled in yet, the site still works locally (browser-only).
+  const configured = !!firebaseConfig.databaseURL;
+  window.__GOOP_SHARED__ = configured;
+
+  if (configured) {
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // Expose a tiny bridge the rest of the (non-module) script can call.
+    window.__fb = {
+      // write one key to the shared cloud
+      set: (key, value) => set(ref(db, 'goop/' + key), value),
+      // read one key once
+      get: async (key) => {
+        const snap = await get(ref(db, 'goop/' + key));
+        return snap.exists() ? snap.val() : null;
+      },
+      // live-subscribe to a key; cb fires whenever anyone changes it
+      watch: (key, cb) => onValue(ref(db, 'goop/' + key), s => cb(s.exists() ? s.val() : null))
+    };
+
+    // Let the main script know the bridge is ready.
+    document.dispatchEvent(new Event('goop-fb-ready'));
+  }
+</script>
 </head>
 <body>
 
@@ -349,7 +417,7 @@
       <div class="logo"></div>
       <div>
         <h1>GOOP MODE</h1>
-        <span>Lucy &amp; Harry · let's ride</span>
+        <span>Lucy &amp; Harry · let's ride <span id="syncdot" class="syncdot" title="Browser-only — fill in Firebase config to share data">●</span></span>
       </div>
     </div>
     <nav class="tabs">
@@ -459,6 +527,28 @@
         </ul>
       </div>
     </div>
+
+    <div class="sectitle" style="margin-top:24px;">Food rules — what's in, what's limited</div>
+    <div class="grid2">
+      <div class="card">
+        <div class="sectitle" style="margin-bottom:12px;">For both of you <span class="ptag" style="background:rgba(255,90,54,.16);color:var(--hot)">both</span></div>
+        <ul style="list-style:none;font-size:13.5px;color:var(--dim);">
+          <li style="padding:8px 0;border-bottom:1px solid var(--line);"><b style="color:var(--hot)">✕ No processed food</b> — cookies, candy, pastries. If a factory made it shelf-stable, skip it.</li>
+          <li style="padding:8px 0;"><b style="color:var(--goop)">✓ Whole grains</b> — brown rice, quinoa, farro, oats, whole-grain wraps over white/refined.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="sectitle" style="margin-bottom:12px;">Personal limits</div>
+        <div style="margin-bottom:14px;">
+          <span class="ptag ph">Harry</span>
+          <p style="font-size:13px;color:var(--dim);margin-top:6px;">Limiting: <b style="color:var(--nut-lite)">cheese, fried foods, alcohol, soda, white flour, ice cream</b>.</p>
+        </div>
+        <div>
+          <span class="ptag pl">Lucy</span>
+          <p style="font-size:13px;color:var(--dim);margin-top:6px;">Limiting: <b style="color:var(--nut-lite)">burgers, ice cream, fried food, alcohol</b>.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -466,9 +556,16 @@
 <section class="page" id="grocery">
   <div class="wrap">
     <div class="sectitle">Goop run — the weekly list <img src="goop-run.png" alt="" class="sticker sticker-run" onerror="this.classList.add('missing')"> <button class="reset" onclick="resetGrocery()">uncheck all</button></div>
+    <div class="card" style="margin-bottom:18px;">
+      <div class="inrow" style="margin-bottom:8px;">
+        <input type="text" id="newgroc" placeholder="add a basic item (e.g. olive oil)" onkeydown="if(event.key==='Enter')addGroc()">
+        <button onclick="addGroc()">ADD</button>
+      </div>
+      <p class="note" style="margin-top:0;">Adds to the <b style="color:var(--goop)">Extras</b> list below. Ingredients from your own recipes show up automatically, tagged with the recipe they belong to.</p>
+    </div>
     <div class="card">
       <div class="glist" id="glist"></div>
-      <p class="note">Tap to check off — saves automatically in this browser. Edit the list in the code under <code>GROCERY</code> to make it yours.</p>
+      <p class="note">Tap to check off — saves automatically and syncs to your partner. The <span class="ptag" style="background:rgba(125,217,87,.16);color:var(--goop)">from recipe</span> tags show which dish each ingredient is for.</p>
     </div>
   </div>
 </section>
@@ -486,6 +583,22 @@
         <div style="font-size:13px;color:var(--dim);padding:4px 0;">▢ Brown lean beef or turkey</div>
         <div style="font-size:13px;color:var(--dim);padding:4px 0;">▢ Portion yogurt / cottage cheese</div>
         <div style="font-size:13px;color:var(--dim);padding:4px 0;">▢ Wash greens, cut peppers &amp; cucumber</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:18px;border-color:var(--goop);">
+      <h5 style="font-family:'JetBrains Mono';font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--goop);margin-bottom:12px;">Add your own recipe 🥜</h5>
+      <p class="note" style="margin-top:0;margin-bottom:12px;">Ingredients you list here flow straight onto the Goop Run list, tagged with this recipe's name. Saves and syncs to both of you.</p>
+      <div class="inrow"><input type="text" id="nr_name" placeholder="Recipe name (e.g. Harry's Egg Bowl)"></div>
+      <div class="inrow"><input type="text" id="nr_ing" placeholder="Ingredients, comma-separated (eggs, spinach, feta)"></div>
+      <div class="inrow"><input type="text" id="nr_steps" placeholder="Steps, separated by | (scramble eggs | wilt spinach | combine)"></div>
+      <div class="inrow">
+        <input type="number" id="nr_cals" placeholder="est. calories / serving" style="flex:1;">
+        <select id="nr_who" style="flex:1;background:rgba(0,0,0,.25);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--txt);font-family:'JetBrains Mono';font-size:12px;">
+          <option value="both">Both</option>
+          <option value="lucy">Lucy</option>
+          <option value="harry">Harry</option>
+        </select>
+        <button onclick="addRecipe()">SAVE</button>
       </div>
     </div>
     <div id="recipes-list"></div>
@@ -514,8 +627,23 @@
 <section class="page" id="tracker">
   <div class="wrap">
     <div class="sectitle">Progress tracker <button class="reset" onclick="resetTracker()">reset all data</button></div>
-    <div class="trackgrid" id="trackgrid"></div>
-    <p class="note" style="margin-top:16px;">Weight saves in this browser only. Log a few times a week — watch the <span class="goop">trend</span>, not the daily wiggle. ~0.5–1 lb/week down = you're dialed. <b style="color:var(--hot);font-family:'JetBrains Mono';letter-spacing:.05em;">THAT'S MOTION BABY.</b></p>
+
+    <div class="subtabs">
+      <button class="subtab active" data-sub="sub-progress">Weight &amp; Movement</button>
+      <button class="subtab" data-sub="sub-food">Food &amp; Calories</button>
+    </div>
+
+    <!-- ---- PROGRESS SUB-PAGE ---- -->
+    <div class="subpage active" id="sub-progress">
+      <div class="trackgrid" id="trackgrid"></div>
+      <p class="note" style="margin-top:16px;">Weight syncs between both of you. Log a few times a week — watch the <span class="goop">trend</span>, not the daily wiggle. ~0.5–1 lb/week down = you're dialed. <b style="color:var(--hot);font-family:'JetBrains Mono';letter-spacing:.05em;">THAT'S MOTION BABY.</b></p>
+    </div>
+
+    <!-- ---- FOOD SUB-PAGE ---- -->
+    <div class="subpage" id="sub-food">
+      <div class="trackgrid" id="foodgrid"></div>
+      <p class="note" style="margin-top:16px;">Log meals with estimated calories. Pick a saved recipe to auto-fill its calories, or type a one-off. Totals reset each day and sync to both of you. A fuller calorie database can slot in later.</p>
+    </div>
 
     <div class="card" style="margin-top:20px;border-color:var(--goop);">
       <div class="sectitle" style="margin-bottom:10px;">Stuck? Run the feedback loop 🔁</div>
@@ -571,7 +699,13 @@ const RECIPES = [
     lucy:"~1 cup rice · 4–5 oz protein", harry:"~1.5 cups rice · 6–7 oz protein" }
 ];
 
-const RULES_DAILY = ["Protein within 1hr of waking","Lunch was the big meal","No caffeine after 2pm","Kitchen closed after dinner","Hit ~protein target"];
+const RULES_DAILY = [
+  "10,000 steps",
+  "Hit protein target",
+  "Kitchen closed after dinner"
+];
+// per-person protein numbers shown inline on the checklist
+const PROTEIN = { lucy:"120–135g", harry:"140–155g" };
 
 /* ============================================================
    TABS
@@ -586,37 +720,129 @@ document.querySelectorAll('.tab').forEach(t=>{
   };
 });
 
-/* ============================================================
-   STORAGE helpers
-   ============================================================ */
-const save=(k,v)=>localStorage.setItem('goop_'+k,JSON.stringify(v));
-const load=(k,d)=>{try{const v=localStorage.getItem('goop_'+k);return v?JSON.parse(v):d;}catch(e){return d;}};
+/* sub-tabs inside the tracker page */
+document.querySelectorAll('.subtab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.subtab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.subpage').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById(t.dataset.sub).classList.add('active');
+  };
+});
 
 /* ============================================================
-   GROCERY
+   STORAGE helpers  —  local-first, cloud-synced when configured
+   ------------------------------------------------------------
+   Every value is mirrored:
+     • localStorage  → instant, offline, per-browser fallback
+     • Firebase      → shared, so Lucy & Harry see each other's data
+   When the cloud changes (the other person logs something), the
+   matching render function re-runs automatically.
+   ============================================================ */
+const SHARED = !!window.__GOOP_SHARED__;
+const _mirror = {};         // in-memory cache of cloud values
+
+// which render function to re-run when a given key changes remotely
+const RERENDER = {
+  grocery:   () => renderGrocery(),
+  customitems:()=> renderGrocery(),
+  userrecipes:()=> { renderRecipes(); renderGrocery(); }
+};
+['lucy','harry'].forEach(w=>{
+  RERENDER['weight_'+w]   = renderTracker;
+  RERENDER['daily_'+w]    = renderTracker;
+  RERENDER['activity_'+w] = renderTracker;
+  RERENDER['food_'+w]     = renderTracker;
+});
+
+const save=(k,v)=>{
+  try{ localStorage.setItem('goop_'+k,JSON.stringify(v)); }catch(e){}
+  _mirror[k]=v;
+  if(SHARED && window.__fb){ window.__fb.set(k,v).catch(()=>{}); }
+};
+const load=(k,d)=>{
+  if(k in _mirror) return _mirror[k];
+  try{const v=localStorage.getItem('goop_'+k);return v!==null?JSON.parse(v):d;}catch(e){return d;}
+};
+
+// Subscribe to cloud changes once the Firebase bridge is ready.
+function wireSync(){
+  if(!SHARED || !window.__fb) return;
+  Object.keys(RERENDER).forEach(key=>{
+    window.__fb.watch(key, val=>{
+      if(val===null) return;
+      _mirror[key]=val;
+      try{ localStorage.setItem('goop_'+key,JSON.stringify(val)); }catch(e){}
+      const fn=RERENDER[key]; if(fn) fn();
+    });
+  });
+  const dot=document.getElementById('syncdot');
+  if(dot){ dot.classList.add('live'); dot.title='Shared sync is on — you and your partner see the same data.'; }
+}
+if(window.__fb){ wireSync(); }
+else { document.addEventListener('goop-fb-ready', wireSync); }
+
+/* ============================================================
+   GROCERY  — base list + user-added basics + recipe ingredients
    ============================================================ */
 function renderGrocery(){
   const checked=load('grocery',{});
+  const customItems=load('customitems',[]);          // [{name}]
+  const userRecipes=load('userrecipes',[]);          // includes ingredients
+
+  // Build the category map fresh each render
+  const cats={};
+  for(const [cat,items] of Object.entries(GROCERY)){ cats[cat]=items.map(i=>({name:i})); }
+
+  // user-added basics → Extras
+  const extrasKey="Flavor + Extras";
+  if(!cats[extrasKey]) cats[extrasKey]=[];
+  customItems.forEach(it=>cats[extrasKey].push({name:it,custom:true}));
+
+  // ingredients from custom recipes → "From your recipes", tagged
+  const recIng=[];
+  userRecipes.forEach(r=>{
+    (r.ing||[]).forEach(ing=>recIng.push({name:ing,recipe:r.name}));
+  });
+  if(recIng.length) cats["From your recipes"]=recIng;
+
   let html='';
-  for(const [cat,items] of Object.entries(GROCERY)){
+  for(const [cat,items] of Object.entries(cats)){
+    if(!items.length) continue;
     html+=`<div class="gcat">${cat}</div>`;
-    items.forEach(it=>{
+    items.forEach(obj=>{
+      const it=obj.name;
       const on=checked[it]?'done':'';
-      html+=`<div class="gitem ${on}" data-i="${it.replace(/"/g,'&quot;')}"><div class="box"></div><span>${it}</span></div>`;
+      const tag=obj.recipe?`<span class="rtag">${esc(obj.recipe)}</span>`:'';
+      const del=obj.custom?`<span class="gx" onclick="event.stopPropagation();delGroc('${esc(it)}')">✕</span>`:'';
+      html+=`<div class="gitem ${on}" data-i="${esc(it)}"><div class="box"></div><span>${esc(it)}</span>${tag}${del}</div>`;
     });
   }
   document.getElementById('glist').innerHTML=html;
-  document.querySelectorAll('.gitem').forEach(el=>{
+  document.querySelectorAll('#glist .gitem').forEach(el=>{
     el.onclick=()=>{
       const c=load('grocery',{});const i=el.dataset.i;
       c[i]=!c[i];save('grocery',c);el.classList.toggle('done');
     };
   });
 }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function addGroc(){
+  const inp=document.getElementById('newgroc');
+  const v=(inp.value||'').trim();
+  if(!v)return;
+  const items=load('customitems',[]);
+  if(!items.includes(v)){items.push(v);save('customitems',items);}
+  inp.value='';renderGrocery();
+}
+function delGroc(name){
+  const items=load('customitems',[]).filter(x=>x!==name);
+  save('customitems',items);renderGrocery();
+}
 function resetGrocery(){save('grocery',{});renderGrocery();}
 
 /* ============================================================
-   RECIPES
+   RECIPES  — built-in + your own (with est. calories)
    ============================================================ */
 function renderRecipes(){
   let html='';
@@ -633,7 +859,45 @@ function renderRecipes(){
         </div>
       </div></details>`;
   });
+
+  const userRecipes=load('userrecipes',[]);
+  if(userRecipes.length){
+    html+=`<div class="sectitle" style="margin-top:24px;">Your recipes</div>`;
+    userRecipes.forEach((r,idx)=>{
+      const cal=r.cals?`<span class="day" style="background:var(--nut);">${r.cals} cal</span>`:'';
+      const whoTag=r.who&&r.who!=='both'?`<span class="ptag ${r.who==='lucy'?'pl':'ph'}">${r.who}</span>`:'';
+      html+=`<details class="rec"><summary><span class="day" style="background:var(--lucy);color:var(--roast);">MINE</span> ${esc(r.name)} ${cal} ${whoTag}</summary>
+        <div class="meat">
+          <div class="row">
+            <div style="flex:1;min-width:200px;"><h5>Grab</h5><ul>${(r.ing||[]).map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>
+            <div style="flex:1;min-width:200px;"><h5>Do</h5><ol>${(r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px 4px;">
+            <span style="font-size:12px;color:var(--dim);">${r.cals?('~'+r.cals+' cal/serving · '):''}ingredients are on your Goop Run list</span>
+            <button class="reset" onclick="delRecipe(${idx})">delete</button>
+          </div>
+        </div></details>`;
+    });
+  }
   document.getElementById('recipes-list').innerHTML=html;
+}
+function addRecipe(){
+  const name=(document.getElementById('nr_name').value||'').trim();
+  const ingRaw=(document.getElementById('nr_ing').value||'').trim();
+  if(!name||!ingRaw){alert('Add at least a recipe name and one ingredient.');return;}
+  const ing=ingRaw.split(',').map(s=>s.trim()).filter(Boolean);
+  const steps=(document.getElementById('nr_steps').value||'').split('|').map(s=>s.trim()).filter(Boolean);
+  const cals=parseInt(document.getElementById('nr_cals').value)||0;
+  const who=document.getElementById('nr_who').value;
+  const list=load('userrecipes',[]);
+  list.push({name,ing,steps,cals,who});
+  save('userrecipes',list);
+  ['nr_name','nr_ing','nr_steps','nr_cals'].forEach(id=>document.getElementById(id).value='');
+  renderRecipes();renderGrocery();
+}
+function delRecipe(idx){
+  const list=load('userrecipes',[]);list.splice(idx,1);save('userrecipes',list);
+  renderRecipes();renderGrocery();
 }
 
 /* ============================================================
@@ -665,13 +929,18 @@ function renderTracker(){
 
     let checks=RULES_DAILY.map((r,i)=>{
       const on=daily[i]?'on':'';
-      return `<div class="dcheck ${on}" onclick="toggleDaily('${who}',${i})"><div class="box"></div><span>${r}</span></div>`;
+      // append this person's protein number to the protein-target line
+      const label = r==="Hit protein target" ? `${r} (${PROTEIN[who]})` : r;
+      return `<div class="dcheck ${on}" onclick="toggleDaily('${who}',${i})"><div class="box"></div><span>${label}</span></div>`;
     }).join('');
 
     const acts=load('activity_'+who,[]);
     let actlog=acts.slice().reverse().slice(0,6).map((a,idx)=>{
       const realIdx=acts.length-1-idx;
-      return `<div class="logrow"><span>${a.date} · ${a.type}</span><span>${a.dur?a.dur+'m':''} <span class="dlt" onclick="delAct('${who}',${realIdx})">✕</span></span></div>`;
+      let amt='';
+      if(a.steps) amt=a.steps.toLocaleString()+' steps';
+      else if(a.dur) amt=fmtDur(a.dur);
+      return `<div class="logrow"><span>${a.date} · ${a.type}</span><span>${amt} <span class="dlt" onclick="delAct('${who}',${realIdx})">✕</span></span></div>`;
     }).join('');
 
     html+=`<div class="who-track ${who} card">
@@ -686,12 +955,18 @@ function renderTracker(){
 
       <h5 style="font-family:'JetBrains Mono';font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--goop);margin:18px 0 8px;">Log today's movement</h5>
       <div class="inrow">
-        <select id="at_${who}" style="flex:2;background:rgba(0,0,0,.25);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--txt);font-family:'JetBrains Mono';font-size:12px;">
+        <select id="at_${who}" onchange="onActType('${who}')" style="flex:2;background:rgba(0,0,0,.25);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--txt);font-family:'JetBrains Mono';font-size:12px;">
           <option>Lifting</option><option>Pilates</option><option>Cardio</option>
           <option>Walk / steps</option><option>Rest day</option><option>Other</option>
         </select>
-        <input type="number" id="ad_${who}" placeholder="min" style="flex:1;max-width:80px;">
         <button onclick="addAct('${who}')">ADD</button>
+      </div>
+      <div class="inrow" id="durrow_${who}">
+        <input type="number" min="0" id="ah_${who}" placeholder="hours" style="flex:1;">
+        <input type="number" min="0" max="59" id="am_${who}" placeholder="min" style="flex:1;">
+      </div>
+      <div class="inrow" id="steprow_${who}" style="display:none;">
+        <input type="number" min="0" id="as_${who}" placeholder="how many steps today?" style="flex:1;">
       </div>
       <div class="loglist">${actlog||'<div style="color:var(--dim);padding:8px 0;">No activity logged yet.</div>'}</div>
 
@@ -717,19 +992,98 @@ function toggleDaily(who,i){
 }
 function resetTracker(){
   if(confirm('Wipe all tracker data for both of you? This cannot be undone.')){
-    ['lucy','harry'].forEach(w=>{save('weight_'+w,[]);save('daily_'+w,{});save('activity_'+w,[]);});
-    renderTracker();
+    ['lucy','harry'].forEach(w=>{save('weight_'+w,[]);save('daily_'+w,{});save('activity_'+w,[]);save('food_'+w,[]);});
+    renderTracker();renderFood();
   }
+}
+// show steps input vs hours/min depending on activity type
+function onActType(who){
+  const isWalk=document.getElementById('at_'+who).value==='Walk / steps';
+  document.getElementById('steprow_'+who).style.display=isWalk?'flex':'none';
+  document.getElementById('durrow_'+who).style.display=isWalk?'none':'flex';
+}
+// format minutes as "1h 20m" / "45m"
+function fmtDur(min){
+  const h=Math.floor(min/60), m=min%60;
+  return (h?h+'h ':'')+(m||!h?m+'m':'').trim();
 }
 function addAct(who){
   const type=document.getElementById('at_'+who).value;
-  const dur=parseInt(document.getElementById('ad_'+who).value)||0;
   const date=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  const a=load('activity_'+who,[]);a.push({type,dur,date});save('activity_'+who,a);
-  document.getElementById('ad_'+who).value='';renderTracker();
+  const a=load('activity_'+who,[]);
+  if(type==='Walk / steps'){
+    const steps=parseInt(document.getElementById('as_'+who).value)||0;
+    if(!steps){alert('Enter how many steps you did today.');return;}
+    a.push({type,steps,date});
+    document.getElementById('as_'+who).value='';
+  } else {
+    const h=parseInt(document.getElementById('ah_'+who).value)||0;
+    const m=parseInt(document.getElementById('am_'+who).value)||0;
+    const dur=h*60+m;
+    a.push({type,dur,date});
+    document.getElementById('ah_'+who).value='';
+    document.getElementById('am_'+who).value='';
+  }
+  save('activity_'+who,a);renderTracker();
 }
 function delAct(who,idx){
   const a=load('activity_'+who,[]);a.splice(idx,1);save('activity_'+who,a);renderTracker();
+}
+
+/* ============================================================
+   FOOD / CALORIE TRACKER  (sub-tab)
+   ============================================================ */
+function todayKey(){ return new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function renderFood(){
+  const target={lucy:'1,750–1,900',harry:'2,200–2,450'};
+  let html='';
+  ['lucy','harry'].forEach(who=>{
+    const food=load('food_'+who,[]);
+    const today=todayKey();
+    const todays=food.filter(f=>f.date===today);
+    const total=todays.reduce((s,f)=>s+(f.cal||0),0);
+    const recipeOpts=load('userrecipes',[]).filter(r=>r.cals).map((r,i)=>`<option value="rec:${i}">${esc(r.name)} (${r.cals})</option>`).join('');
+
+    let log=todays.slice().reverse().map((f,idx)=>{
+      const realIdx=todays.length-1-idx;
+      // map back to absolute index in full array
+      const absIdx=food.lastIndexOf(todays[realIdx]);
+      return `<div class="logrow"><span>${esc(f.name)}</span><span>${f.cal} cal <span class="dlt" onclick="delFood('${who}',${absIdx})">✕</span></span></div>`;
+    }).join('');
+
+    html+=`<div class="who-track ${who} card">
+      <h3>${who.toUpperCase()}</h3>
+      <div class="calbar"><b>${total.toLocaleString()}</b><small>cal today · target ${target[who]}</small></div>
+      ${recipeOpts?`<div class="inrow"><select id="fr_${who}" onchange="pickRecipe('${who}')" style="flex:1;background:rgba(0,0,0,.25);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;color:var(--txt);font-family:'JetBrains Mono';font-size:12px;"><option value="">— pick a saved recipe —</option>${recipeOpts}</select></div>`:''}
+      <div class="inrow">
+        <input type="text" id="fn_${who}" placeholder="meal / food" style="flex:2;">
+        <input type="number" id="fc_${who}" placeholder="cal" style="flex:1;max-width:90px;">
+        <button onclick="addFood('${who}')">ADD</button>
+      </div>
+      <div class="loglist">${log||'<div style="color:var(--dim);padding:8px 0;">Nothing logged today.</div>'}</div>
+    </div>`;
+  });
+  document.getElementById('foodgrid').innerHTML=html;
+}
+function pickRecipe(who){
+  const sel=document.getElementById('fr_'+who);
+  const v=sel.value;
+  if(!v.startsWith('rec:'))return;
+  const r=load('userrecipes',[])[parseInt(v.slice(4))];
+  if(r){document.getElementById('fn_'+who).value=r.name;document.getElementById('fc_'+who).value=r.cals||'';}
+  sel.value='';
+}
+function addFood(who){
+  const name=(document.getElementById('fn_'+who).value||'').trim();
+  const cal=parseInt(document.getElementById('fc_'+who).value)||0;
+  if(!name){alert('Add a food name.');return;}
+  const food=load('food_'+who,[]);
+  food.push({name,cal,date:todayKey()});save('food_'+who,food);
+  document.getElementById('fn_'+who).value='';document.getElementById('fc_'+who).value='';
+  renderFood();
+}
+function delFood(who,idx){
+  const food=load('food_'+who,[]);food.splice(idx,1);save('food_'+who,food);renderFood();
 }
 
 /* ---- FEEDBACK LOOP: build a copy-paste prompt from real data ---- */
@@ -749,7 +1103,7 @@ function buildPrompt(who){
     wLine=`Weigh-ins (${weights.length}): ${series}. Net change so far: ${change} lb.`;
   }
   let aLine = acts.length
-    ? `Recent activity: ${acts.slice(-12).map(a=>`${a.date} ${a.type}${a.dur?' '+a.dur+'m':''}`).join('; ')}.`
+    ? `Recent activity: ${acts.slice(-12).map(a=>`${a.date} ${a.type}${a.steps?' '+a.steps+' steps':(a.dur?' '+fmtDur(a.dur):'')}`).join('; ')}.`
     : 'No activity logged yet.';
   const doneCount=Object.values(daily).filter(Boolean).length;
   const habitLine=`Today's habit checklist: ${doneCount}/${RULES_DAILY.length} done (${RULES_DAILY.filter((r,i)=>daily[i]).join(', ')||'none ticked'}).`;
@@ -810,7 +1164,7 @@ function renderFuel(){
 }
 
 /* INIT */
-renderGrocery();renderRecipes();renderTracker();renderFuel();
+renderGrocery();renderRecipes();renderTracker();renderFood();renderFuel();
 </script>
 </body>
 </html>
